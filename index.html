@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>كود نيمز - Codenames</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* === إعدادات الأساس === */
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-hover: #21262d;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+            --red-team: #f85149;
+            --red-bg: rgba(248, 81, 73, 0.15);
+            --blue-team: #58a6ff;
+            --blue-bg: rgba(88, 166, 255, 0.15);
+            --gold: #d29922;
+            --gold-bg: rgba(210, 153, 34, 0.15);
+            --neutral: #8b949e;
+            --neutral-revealed: #e5e5e5;
+            --killer: #000000;
+        }
+
+        * {
+            font-family: 'Tajawal', sans-serif;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hidden { display: none !important; }
+
+        /* === أنماط الأزرار المحسنة === */
+        .btn {
+            cursor: pointer;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            width: 100%;
+            touch-action: manipulation;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.2s ease,
+                        background 0.2s ease;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .btn:hover::before {
+            opacity: 1;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: scale(0.96) translateY(0);
+            transition: transform 0.1s ease;
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gold), #e6b800);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(210, 153, 34, 0.4),
+                        inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(210, 153, 34, 0.5),
+                        inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .btn-primary:active {
+            box-shadow: 0 2px 10px rgba(210, 153, 34, 0.3);
+        }
+
+        .btn-gray {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid #30363d;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-gray:hover {
+            background: var(--bg-hover);
+            border-color: #484f58;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-gray:active {
+            background: var(--bg-card);
+        }
+
+        .btn-red {
+            background: linear-gradient(135deg, var(--red-team), #da3633);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(248, 81, 73, 0.4);
+        }
+
+        .btn-red:hover {
+            box-shadow: 0 6px 20px rgba(248, 81, 73, 0.5);
+        }
+
+        .btn-blue {
+            background: linear-gradient(135deg, var(--blue-team), #388bfd);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(88, 166, 255, 0.4);
+        }
+
+        .btn-blue:hover {
+            box-shadow: 0 6px 20px rgba(88, 166, 255, 0.5);
+        }
+
+        /* === الحاويات === */
+        .screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-dark);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+
+        .screen.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        /* === شريط الحالة العلوي === */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .score-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 900;
+            font-size: 1.2rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        /* === منطقة التلميح === */
+        .hint-area {
+            background: var(--gold-bg);
+            border: 2px solid var(--gold);
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .hint-area.empty {
+            background: var(--bg-card);
+            border: 2px dashed #30363d;
+            color: var(--text-muted);
+        }
+
+        .hint-text {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--gold);
+            text-shadow: 0 0 20px rgba(210, 153, 34, 0.3);
+        }
+
+        /* === لوحة اللعب === */
+        .board-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            width: 100%;
+        }
+
+        .card {
+            aspect-ratio: 3 / 2.2;
+            perspective: 1000px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: clamp(0.75rem, 2.8vw, 1rem);
+            text-align: center;
+            padding: 4px;
+            border: 2px solid #30363d;
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-front {
+            background: var(--bg-card);
+            color: var(--text-main);
+            z-index: 2;
+        }
+
+        .card:not(.flipped):hover .card-front {
+            border-color: #484f58;
+            box-shadow: 0 0 15px rgba(88, 166, 255, 0.2);
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            border: 2px solid transparent;
+            font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+        }
+
+        .card-back.red { 
+            background: var(--red-team); 
+            color: white; 
+            border-color: #ff7b72; 
+            box-shadow: 0 0 20px rgba(248, 81, 73, 0.5);
+        }
+        .card-back.blue { 
+            background: var(--blue-team); 
+            color: #000; 
+            border-color: #79c0ff;
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.5);
+        }
+        .card-back.neutral { 
+            background: var(--neutral-revealed); 
+            color: #333; 
+            border-color: #ccc; 
+        }
+        .card-back.killer { 
+            background: var(--killer); 
+            color: var(--gold); 
+            border-color: var(--gold);
+            box-shadow: 0 0 20px rgba(210, 153, 34, 0.5);
+        }
+
+        /* حدود القائد */
+        .card.spymaster .card-front { border-width: 3px; }
+        .card.spymaster-red .card-front { border-color: var(--red-team); box-shadow: 0 0 10px rgba(248, 81, 73, 0.3); }
+        .card.spymaster-blue .card-front { border-color: var(--blue-team); box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
+        .card.spymaster-killer .card-front { border-color: var(--gold); box-shadow: 0 0 10px rgba(210, 153, 34, 0.3); }
+        .card.spymaster-neutral .card-front { border-color: var(--neutral); }
+
+        /* === أزرار التحكم السفلية === */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            flex-shrink: 0;
+            padding-bottom: 8px;
+        }
+        .controls .full-width { grid-column: span 2; }
+
+        /* === النوافذ المنبثقة === */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 17, 23, 0.98);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+
+        .overlay.active { opacity: 1; visibility: visible; }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal.active { opacity: 1; visibility: visible; }
+
+        .modal-box {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 360px;
+            border: 1px solid #30363d;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal.active .modal-box {
+            transform: scale(1);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: 2px solid #30363d;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            font-size: 1.1rem;
+            margin-bottom: 14px;
+            outline: none;
+            text-align: center;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .input-field:focus { 
+            border-color: var(--gold); 
+            box-shadow: 0 0 15px rgba(210, 153, 34, 0.2);
+        }
+
+        /* رسوم متحركة */
+        @keyframes pulse { 
+            0%, 100% { transform: scale(1); } 
+            50% { transform: scale(1.05); } 
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .pulse-anim { animation: pulse 2s infinite; }
+        .fade-in-up { animation: fadeInUp 0.5s ease forwards; }
+    </style>
+</head>
+<body>
+
+    <!-- ===== شاشة البداية ===== -->
+    <div id="screen-start" class="screen active">
+        <div class="container" style="justify-content: center; align-items: center;">
+            <h1 style="font-size: 3rem; font-weight: 900; background: linear-gradient(135deg, var(--red-team), var(--gold), var(--blue-team)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px;">كود نيمز</h1>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">لعبة الكلمات الاستراتيجية</p>
+            
+            <div style="background: var(--bg-card); padding: 20px; border-radius: 16px; width: 100%; margin-bottom: 30px; border: 1px solid #30363d;">
+                <h3 style="color: var(--gold); margin-bottom: 12px; font-size: 1.1rem;">قواعد اللعب</h3>
+                <ul style="text-align: right; color: var(--text-muted); font-size: 0.95rem; line-height: 2;">
+                    <li><span style="color: var(--red-team);">●</span> الفريق الأحمر: 9 كلمات (يبدأ)</li>
+                    <li><span style="color: var(--blue-team);">●</span> الفريق الأزرق: 8 كلمات</li>
+                    <li><span style="color: var(--gold);">●</span> القائد يرى الألوان ويعطي تلميح</li>
+                    <li><span style="color: #fff; background: #333; padding: 0 6px; border-radius: 4px;">●</span> الكلمات المحايدة تظهر بيضاء</li>
+                </ul>
+            </div>
+            <button id="btn-new-game" class="btn btn-primary" style="max-width: 280px;">ابدأ اللعبة</button>
+        </div>
+    </div>
+
+    <!-- ===== شاشة اللعب ===== -->
+    <div id="screen-game" class="screen">
+        <div class="container">
+            <!-- الشريط العلوي -->
+            <div class="status-bar">
+                <div id="role-badge" style="padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700;"></div>
+                <div style="display: flex; gap: 20px;">
+                    <div class="score-box">
+                        <div class="dot" style="background: var(--red-team); color: var(--red-team);"></div>
+                        <span id="score-red">9</span>
+                    </div>
+                    <div class="score-box">
+                        <div class="dot" style="background: var(--blue-team); color: var(--blue-team);"></div>
+                        <span id="score-blue">8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- التلميح -->
+            <div id="hint-area" class="hint-area empty">
+                <span>بانتظار التلميح...</span>
+            </div>
+
+            <!-- اللوحة -->
+            <div class="board-wrapper">
+                <div id="board" class="board"></div>
+            </div>
+
+            <!-- التحكم -->
+            <div class="controls">
+                <button id="btn-give-hint" class="btn btn-gray">تلميح</button>
+                <button id="btn-end-turn" class="btn btn-gray">إنهاء</button>
+                <button id="btn-menu" class="btn btn-gray full-width">القائمة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== نافذة تسليم الجهاز ===== -->
+    <div id="overlay-pass" class="overlay">
+        <div id="pass-icon" style="width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; margin-bottom: 24px;"></div>
+        <h2 id="pass-title" style="font-size: 1.6rem; margin-bottom: 12px;"></h2>
+        <p id="pass-subtitle" style="color: var(--text-muted); margin-bottom: 32px;"></p>
+        <button id="btn-ready" class="btn btn-primary" style="max-width: 220px;">جاهز</button>
+    </div>
+
+    <!-- ===== نوافذ منبثقة ===== -->
+    <div id="modal-hint" class="modal">
+        <div class="modal-box">
+            <h3 style="text-align: center; margin-bottom: 18px; color: var(--gold); font-size: 1.2rem;">اعطاء تلميح</h3>
+            <input type="text" id="input-hint-word" class="input-field" placeholder="الكلمة">
+            <input type="number" id="input-hint-num" class="input-field" placeholder="العدد" min="1" max="9">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <button id="btn-submit-hint" class="btn btn-primary">تأكيد</button>
+                <button id="btn-cancel-hint" class="btn btn-gray">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-gameover" class="modal">
+        <div class="modal-box" style="text-align: center;">
+            <div id="winner-icon" style="font-size: 4rem; margin-bottom: 12px;"></div>
+            <h2 id="winner-text" style="font-size: 1.6rem; margin-bottom: 12px;"></h2>
+            <p id="winner-reason" style="color: var(--text-muted); margin-bottom: 24px; font-size: 0.95rem;"></p>
+            <button id="btn-play-again" class="btn btn-primary">لعبة جديدة</button>
+        </div>
+    </div>
+
+    <div id="modal-menu" class="modal">
+        <div class="modal-box">
+            <button id="btn-restart" class="btn btn-gray" style="margin-bottom: 10px;">إعادة اللعبة</button>
+            <button id="btn-main-menu" class="btn btn-gray" style="margin-bottom: 10px;">القائمة الرئيسية</button>
+            <button id="btn-close-menu" class="btn btn-gray" style="background: #21262d;">إغلاق</button>
+        </div>
+    </div>
+
+    <script>
+        const WORDS = [
+            'بحر', 'قمر', 'شمس', 'نجم', 'مطر', 'جبل', 'نهر', 'صحراء', 'غابة', 'مدينة',
+            'بيت', 'باب', 'نافذة', 'سقف', 'حائط', 'كتاب', 'قلم', 'ورقة', 'مدرسة', 'معلم',
+            'طبيب', 'مستشفى', 'دواء', 'مرض', 'صحة', 'سيارة', 'طائرة', 'سفينة', 'قطار', 'طريق',
+            'خبز', 'ماء', 'حليب', 'فاكهة', 'خضار', 'أسد', 'نمر', 'ذئب', 'حصان', 'طائر',
+            'ذهب', 'فضة', 'حديد', 'نحاس', 'معدن', 'ملك', 'وزير', 'جندي', 'قائد', 'شرطي',
+            'حرب', 'سلم', 'عدو', 'صديق', 'تحالف', 'ليل', 'نهار', 'صباح', 'مساء', 'وقت',
+            'حب', 'كره', 'فرح', 'حزن', 'أمل', 'نار', 'ثلج', 'ريح', 'سحاب', 'برق',
+            'ولد', 'بنت', 'رجل', 'امرأة', 'طفل', 'عين', 'أنف', 'فم', 'يد', 'قدم',
+            'قلب', 'دم', 'عظم', 'جلد', 'شعر', 'فكر', 'عقل', 'روح', 'جسم', 'نفس',
+            'كرة', 'هدف', 'فوز', 'خسارة', 'فريق', 'سينما', 'مسرح', 'موسيقى', 'رسم', 'فن',
+            'جمل', 'صقر', 'عقاب', 'ثعلب', 'دب', 'قرد', 'فيل', 'زرافة', 'غزال', 'أرنب',
+            'سلحفاة', 'ثعبان', 'تمساح', 'حوت', 'سمكة', 'قرش', 'دولفين', 'بومة', 'نحلة', 'نملة',
+            'عنكبوت', 'فراشة', 'خفاش', 'جراد', 'عقرب', 'دجاجة', 'حمامة', 'بطريق', 'نعامة', 'طاووس',
+            'ببغاء', 'سنونو', 'ظبي', 'حمار', 'بقرة', 'فأر', 'شجرة', 'زهرة', 'وردة', 'نخيل',
+            'صبار', 'بلوط', 'زيتون', 'عنب', 'تفاح', 'موز', 'برتقال', 'ليمون', 'مانجو', 'بطيخ',
+            'فراولة', 'تين', 'رمان', 'جزر', 'بطاطس', 'طماطم', 'خيار', 'بصل', 'ثوم', 'قمح',
+            'شعير', 'أرز', 'ذرة', 'عشب', 'سرخس', 'طحلب', 'حشيش', 'نبع', 'محيط', 'بحيرة',
+            'سد', 'شلال', 'تلة', 'واد', 'رمل', 'صخر', 'حجر', 'كهف', 'غار', 'بركان',
+            'زلزال', 'عاصفة', 'جليد', 'ضباب', 'كوكب', 'جزيرة', 'شاطئ', 'كثيب', 'واحة', 'بئر',
+            'مغارة', 'هضبة', 'سهل', 'تيار', 'موجة', 'قصر', 'كوخ', 'خيمة', 'برج', 'جدار',
+            'سور', 'جسر', 'ميناء', 'مطار', 'محطة', 'سوق', 'مسجد', 'كنيسة', 'سجن', 'قلعة',
+            'حصن', 'مركب', 'غواصة', 'مروحية', 'صاروخ', 'شاحنة', 'دراجة', 'ساعة', 'مرآة', 'سيف',
+            'درع', 'تاج', 'عرش', 'قوس', 'سهم', 'رمح', 'طوب', 'أسمنت', 'زجاج', 'خشب',
+            'بلاط', 'سلم', 'مصعد', 'حديقة', 'مزرعة', 'بستان', 'سكين', 'ملعقة', 'شوكة', 'طبق',
+            'كوب', 'إبريق', 'براد', 'قدر', 'مقلاة', 'ثلاجة', 'خلاط', 'مبشرة', 'صينية', 'قارورة',
+            'علبة', 'مكنسة', 'دلو', 'إسفنج', 'صابون', 'ثوب', 'عباءة', 'قميص', 'جينز', 'فستان',
+            'تنورة', 'معطف', 'جاكيت', 'قبعة', 'كوفية', 'حزام', 'حذاء', 'نعل', 'نظارة', 'حقيبة',
+            'محفظة', 'شال', 'طرحة', 'جورب', 'قفاز', 'صوف', 'قطن', 'حرير', 'كتان', 'جلد',
+            'فراء', 'بلاستيك', 'مطاط', 'ورق', 'كرتون', 'رخام', 'جرانيت', 'طين', 'دهان', 'حبر',
+            'سيراميك', 'نجار', 'حداد', 'خياط', 'بناء', 'سمكري', 'كهربائي', 'ميكانيكي', 'بحار', 'سائق',
+            'حارس', 'طباخ', 'نادل', 'خباز', 'فلاح', 'صياد', 'تاجر', 'صانع', 'موظف', 'مدير',
+            'صيدلي', 'هاتف', 'جوال', 'حاسوب', 'لابتوب', 'تابلت', 'تلفاز', 'راديو', 'كاميرا', 'بطارية',
+            'شاحن', 'شاشة', 'طابعة', 'مودم', 'سماعة', 'ماوس', 'كيبورد', 'سلك', 'مقبس', 'ريموت',
+            'سرير', 'وسادة', 'لحاف', 'بطانية', 'كنبة', 'أريكة', 'مكتب', 'خزانة', 'دولاب', 'سجادة',
+            'ستارة', 'مصباح', 'فانوس', 'بلكونة', 'سرداب', 'مقعد', 'مرتبة', 'عتبة', 'ستاند', 'جبن',
+            'زبدة', 'زيت', 'خل', 'عسل', 'مربى', 'زبيب', 'لوز', 'فستق', 'كاجو', 'جوز',
+            'فول', 'عدس', 'حمص', 'فاصوليا', 'لوبيا', 'بازلاء', 'مكرونة', 'شعرية', 'كنافة', 'قارة',
+            'مضيق', 'خليج', 'تلال', 'صخور', 'ينبوع', 'غدير', 'بركة', 'مستنقع', 'دخان', 'جوهر'
+        ];
+
+        let state = {
+            cards: [],
+            currentTeam: 'red',
+            role: 'spymaster',
+            scores: { red: 0, blue: 0 },
+            hint: null,
+            guessesLeft: 0,
+            hintGiven: false,
+            gameOver: false
+        };
+
+        const $ = id => document.getElementById(id);
+        const screens = { start: $('screen-start'), game: $('screen-game') };
+        const modals = { hint: $('modal-hint'), gameover: $('modal-gameover'), menu: $('modal-menu'), pass: $('overlay-pass') };
+
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function showScreen(name) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[name].classList.add('active');
+        }
+
+        function toggleModal(name, show) {
+            if (show) modals[name].classList.add('active');
+            else modals[name].classList.remove('active');
+        }
+
+        function initGame() {
+            state = {
+                cards: [],
+                currentTeam: 'red',
+                role: 'spymaster',
+                scores: { red: 0, blue: 0 },
+                hint: null,
+                guessesLeft: 0,
+                hintGiven: false,
+                gameOver: false
+            };
+
+            const words = shuffle(WORDS).slice(0, 25);
+            const types = shuffle([
+                ...Array(9).fill('red'),
+                ...Array(8).fill('blue'),
+                ...Array(7).fill('neutral'),
+                'killer'
+            ]);
+
+            state.cards = words.map((word, i) => ({
+                word,
+                type: types[i],
+                revealed: false
+            }));
+
+            renderBoard();
+            updateUI();
+            showScreen('game');
+            toggleModal('pass', true);
+            showPassScreen();
+        }
+
+        function renderBoard() {
+            const board = $('board');
+            board.innerHTML = '';
+
+            state.cards.forEach((card, idx) => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                
+                if (state.role === 'spymaster' && !card.revealed) {
+                    div.classList.add('spymaster', `spymaster-${card.type}`);
+                }
+
+                if (card.revealed) div.classList.add('flipped');
+
+                div.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-face card-front">${card.word}</div>
+                        <div class="card-face card-back ${card.type}">${card.word}</div>
+                    </div>
+                `;
+
+                if (state.role === 'operative' && !card.revealed && state.hintGiven && !state.gameOver) {
+                    div.onclick = () => revealCard(idx);
+                    div.style.cursor = 'pointer';
+                } else {
+                    div.style.cursor = 'default';
+                }
+
+                board.appendChild(div);
+            });
+        }
+
+        function updateUI() {
+            $('score-red').textContent = 9 - state.scores.red;
+            $('score-blue').textContent = 8 - state.scores.blue;
+
+            const teamName = state.currentTeam === 'red' ? 'الأحمر' : 'الأزرق';
+            const roleName = state.role === 'spymaster' ? 'قائد' : 'لاعب';
+            const color = state.currentTeam === 'red' ? 'var(--red-team)' : 'var(--blue-team)';
+            const bg = state.currentTeam === 'red' ? 'var(--red-bg)' : 'var(--blue-bg)';
+
+            $('role-badge').style.background = bg;
+            $('role-badge').style.color = color;
+            $('role-badge').textContent = `${roleName}: ${teamName}`;
+
+            const hintArea = $('hint-area');
+            if (state.hint && state.role === 'operative') {
+                hintArea.className = 'hint-area';
+                hintArea.innerHTML = `
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">التلميح</div>
+                    <div class="hint-text">${state.hint.word} (${state.hint.count})</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">متبقي: ${state.guessesLeft}</div>
+                `;
+            } else {
+                hintArea.className = 'hint-area empty';
+                hintArea.innerHTML = `<span>${state.role === 'spymaster' ? 'أعطِ تلميحاً لفريقك' : 'بانتظار التلميح...'}</span>`;
+            }
+
+            const isSpymaster = state.role === 'spymaster';
+            $('btn-give-hint').disabled = !(isSpymaster && !state.hintGiven);
+            $('btn-give-hint').style.opacity = (isSpymaster && !state.hintGiven) ? '1' : '0.4';
+            $('btn-end-turn').textContent = isSpymaster ? 'تسليم للاعب' : 'إنهاء الدور';
+        }
+
+        function showPassScreen() {
+            const team = state.currentTeam;
+            const isSpymaster = state.role === 'spymaster';
+            const teamName = team === 'red' ? 'الأحمر' : 'الأزرق';
+            const roleName = isSpymaster ? 'القائد' : 'اللاعب';
+            const bg = team === 'red' ? 'var(--red-bg)' : 'var(--blue-bg)';
+
+            $('pass-icon').style.background = bg;
+            $('pass-icon').textContent = team === 'red' ? '🔴' : '🔵';
+            $('pass-title').textContent = `سلم الجهاز لفريق ${teamName}`;
+            $('pass-title').style.color = team === 'red' ? 'var(--red-team)' : 'var(--blue-team)';
+            $('pass-subtitle').textContent = `الدور: ${roleName}`;
+
+            toggleModal('pass', true);
+        }
+
+        function revealCard(idx) {
+            if (state.gameOver || state.role !== 'operative' || !state.hintGiven || state.guessesLeft <= 0) return;
+
+            const card = state.cards[idx];
+            if (card.revealed) return;
+
+            card.revealed = true;
+            state.guessesLeft--;
+
+            const cards = document.querySelectorAll('.card');
+            cards[idx].classList.add('flipped');
+
+            setTimeout(() => {
+                if (card.type === 'killer') {
+                    endGame(state.currentTeam === 'red' ? 'blue' : 'red', 'killer');
+                } else if (card.type === state.currentTeam) {
+                    state.scores[state.currentTeam]++;
+                    updateUI();
+                    if ((state.currentTeam === 'red' && state.scores.red >= 9) || 
+                        (state.currentTeam === 'blue' && state.scores.blue >= 8)) {
+                        endGame(state.currentTeam, 'words');
+                    } else if (state.guessesLeft <= 0) {
+                        endTurn();
+                    }
+                } else {
+                    if (card.type === 'red') state.scores.red++;
+                    else if (card.type === 'blue') state.scores.blue++;
+                    updateUI();
+                    endTurn();
+                }
+            }, 500);
+        }
+
+        function endTurn() {
+            if (state.role === 'spymaster') {
+                if (!state.hintGiven) { alert('أعطِ تلميحاً أولاً!'); return; }
+                state.role = 'operative';
+                renderBoard();
+            } else {
+                state.hintGiven = false;
+                state.hint = null;
+                state.guessesLeft = 0;
+                state.role = 'spymaster';
+                state.currentTeam = state.currentTeam === 'red' ? 'blue' : 'red';
+            }
+            updateUI();
+            showPassScreen();
+        }
+
+        function endGame(winner, reason) {
+            state.gameOver = true;
+            const name = winner === 'red' ? 'الأحمر' : 'الأزرق';
+            
+            $('winner-icon').textContent = winner === 'red' ? '🔴' : '🔵';
+            $('winner-text').textContent = `فوز فريق ${name}!`;
+            $('winner-text').style.color = winner === 'red' ? 'var(--red-team)' : 'var(--blue-team)';
+            $('winner-reason').textContent = reason === 'killer' ? 'تم كشف البطاقة القاتلة!' : 'تم إيجاد جميع الكلمات!';
+            
+            toggleModal('gameover', true);
+        }
+
+        // الأحداث
+        $('btn-new-game').onclick = initGame;
+        
+        $('btn-ready').onclick = () => {
+            toggleModal('pass', false);
+            renderBoard();
+            updateUI();
+        };
+
+        $('btn-give-hint').onclick = () => {
+            if (state.role === 'spymaster' && !state.hintGiven) toggleModal('hint', true);
+        };
+
+        $('btn-submit-hint').onclick = () => {
+            const word = $('input-hint-word').value.trim();
+            const num = parseInt($('input-hint-num').value);
+            if (!word || !num || num < 1 || num > 9) { alert('تلميح غير صالح'); return; }
+
+            state.hint = { word, count: num };
+            state.hintGiven = true;
+            state.guessesLeft = num + 1;
+            
+            $('input-hint-word').value = '';
+            $('input-hint-num').value = '';
+            toggleModal('hint', false);
+            updateUI();
+        };
+
+        $('btn-cancel-hint').onclick = () => toggleModal('hint', false);
+        $('btn-end-turn').onclick = endTurn;
+
+        $('btn-menu').onclick = () => toggleModal('menu', true);
+        $('btn-close-menu').onclick = () => toggleModal('menu', false);
+        $('btn-restart').onclick = () => { toggleModal('menu', false); initGame(); };
+        $('btn-main-menu').onclick = () => { toggleModal('menu', false); showScreen('start'); };
+        $('btn-play-again').onclick = () => { toggleModal('gameover', false); initGame(); };
+
+    </script>
+</body>
+</html>
